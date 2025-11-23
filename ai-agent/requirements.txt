@@ -1,0 +1,10 @@
+fastapi
+uvicorn[standard]
+pydantic
+python-dotenv
+requests
+mysql-connector-python
+langchain
+tavily-python
+google-genai>=0.1.0
+langchain-google-genai
