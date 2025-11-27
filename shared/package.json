@@ -1,0 +1,12 @@
+{
+    "name": "airbnb-shared",
+    "version": "1.0.0",
+    "type": "module",
+    "description": "Shared utilities for Airbnb microservices",
+    "main": "index.js",
+    "dependencies": {
+        "jsonwebtoken": "^9.0.2",
+        "kafkajs": "^2.2.4",
+        "mongoose": "^8.0.3"
+    }
+}

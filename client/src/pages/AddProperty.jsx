@@ -54,17 +54,26 @@ export default function AddProperty() {
         maxGuests: parseInt(formData.maxGuests)
       };
 
-      const { data: property } = await api.post('/properties', propertyData);
+      const { data } = await api.post('/properties', propertyData);
+      const newProperty = data.property;
 
       // Upload photos if any
       if (photos.length > 0) {
-        const fd = new FormData();
-        photos.forEach(photo => fd.append('photos', photo));
-        await api.post(`/properties/${property.id}/photos`, fd);
+        try {
+          const fd = new FormData();
+          photos.forEach(photo => fd.append('photos', photo));
+          await api.post(`/properties/${newProperty.id}/photos`, fd);
+        } catch (photoError) {
+          console.error('Photo upload failed:', photoError);
+          setError('Property created but failed to upload photos');
+          setUploading(false);
+          return;
+        }
       }
 
-      nav('/'); // Go back to owner dashboard
+      nav('/', { replace: true, state: { refresh: true } }); // Go back to owner dashboard and trigger refresh
     } catch (e) {
+      console.error('Property creation error:', e);
       setError(e.response?.data?.error || 'Failed to create property');
     } finally {
       setUploading(false);
@@ -186,7 +195,7 @@ export default function AddProperty() {
                 onChange={e => handleChange('state', e.target.value)}
               >
                 <option value="">Select State</option>
-                {['AL','AK','AZ','AR','CA','CO','CT','DC','DE','FL','GA','HI','IA','ID','IL','IN','KS','KY','LA','MA','MD','ME','MI','MN','MO','MS','MT','NC','ND','NE','NH','NJ','NM','NV','NY','OH','OK','OR','PA','RI','SC','SD','TN','TX','UT','VA','VT','WA','WI','WV','WY'].map(s => (
+                {['AL', 'AK', 'AZ', 'AR', 'CA', 'CO', 'CT', 'DC', 'DE', 'FL', 'GA', 'HI', 'IA', 'ID', 'IL', 'IN', 'KS', 'KY', 'LA', 'MA', 'MD', 'ME', 'MI', 'MN', 'MO', 'MS', 'MT', 'NC', 'ND', 'NE', 'NH', 'NJ', 'NM', 'NV', 'NY', 'OH', 'OK', 'OR', 'PA', 'RI', 'SC', 'SD', 'TN', 'TX', 'UT', 'VA', 'VT', 'WA', 'WI', 'WV', 'WY'].map(s => (
                   <option key={s} value={s}>{s}</option>
                 ))}
               </select>
@@ -199,7 +208,7 @@ export default function AddProperty() {
                 value={formData.country}
                 onChange={e => handleChange('country', e.target.value)}
               >
-                {['USA','Canada','UK','India','Australia'].map(c => (
+                {['USA', 'Canada', 'UK', 'India', 'Australia'].map(c => (
                   <option key={c} value={c}>{c}</option>
                 ))}
               </select>

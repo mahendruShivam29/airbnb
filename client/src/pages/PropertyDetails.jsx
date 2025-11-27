@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import api from '../api';
-const SERVER = 'http://localhost:4000';
+const SERVER = 'http://localhost:4002';
 
 export default function PropertyDetails() {
   const { id } = useParams();
@@ -15,14 +15,19 @@ export default function PropertyDetails() {
   useEffect(() => {
     (async () => {
       const r = await api.get(`/properties/${id}`);
-      setP(r.data);
+      setP(r.data.property);
     })();
   }, [id]);
 
   const book = async () => {
     setMsg(''); setErr('');
     try {
-      await api.post('/bookings', { propertyId: id, startDate: start, endDate: end, guests });
+      await api.post('/traveler/bookings', {
+        propertyId: id,
+        checkInDate: start,
+        checkOutDate: end,
+        guests: parseInt(guests)
+      });
       setMsg('Booking request sent! (Pending)');
     } catch (e) {
       setErr(e.response?.data?.error || 'Booking failed');

@@ -8,7 +8,8 @@ import datetime as dt
 from typing import List, Optional, Any, Dict
 
 import requests
-import mysql.connector
+from pymongo import MongoClient
+from pymongo.errors import ConnectionFailure, OperationFailure
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -27,6 +28,11 @@ LLM_MODEL    = os.getenv("LLM_MODEL", "").strip()
 CORS_ORIGIN  = os.getenv("CORS_ORIGIN", "http://localhost:5173")
 TAVILY_API_KEY = os.getenv("TAVILY_API_KEY", "")
 GOOGLE_API_KEY    = os.getenv("GOOGLE_API_KEY", "").strip()
+
+# MongoDB Configuration
+MONGODB_URI = os.getenv("MONGODB_URI", "mongodb://localhost:27017")
+MONGODB_BOOKING_DB = os.getenv("MONGODB_BOOKING_DB", "airbnb_booking")
+MONGODB_PROPERTY_DB = os.getenv("MONGODB_PROPERTY_DB", "airbnb_property")
 
 app = FastAPI(title="AI Concierge Agent", version="2.2")
 
@@ -92,50 +98,116 @@ class AgentOutput(BaseModel):
 # ------------------------------------------------------------------------------
 # DB utilities (only used if you pass use_latest_booking_for_user_id)
 # ------------------------------------------------------------------------------
-def mysql_conn():
-    return mysql.connector.connect(
-        host=os.getenv("MYSQL_HOST", "127.0.0.1"),
-        port=int(os.getenv("MYSQL_PORT", "3307")),  # default 3307 to match your Docker mapping
-        user=os.getenv("MYSQL_USER", "root"),
-        password=os.getenv("MYSQL_PASSWORD", ""),
-        database=os.getenv("MYSQL_DB", "airbnb_dev"),
-    )
+
+# MongoDB client singleton
+_mongo_client = None
+
+def get_mongo_client():
+    """Get or create MongoDB client singleton"""
+    global _mongo_client
+    if _mongo_client is None:
+        try:
+            _mongo_client = MongoClient(MONGODB_URI, serverSelectionTimeoutMS=5000)
+            # Test connection
+            _mongo_client.admin.command('ping')
+            print(f"✅ MongoDB connected: {MONGODB_URI}")
+        except ConnectionFailure as e:
+            print(f"❌ MongoDB connection failed: {e}")
+            raise HTTPException(status_code=503, detail="Database unavailable")
+    return _mongo_client
 
 def fetch_latest_booking_for_user(user_id: str) -> Optional[BookingContext]:
+    """
+    Fetch the latest booking for a user from MongoDB.
+    Joins Booking with Property collection to get location info.
+    """
     try:
-        print("fetch_latest_booking_for_user ", user_id)
-        cn = mysql_conn()
-        cur = cn.cursor(dictionary=True)
-        cur.execute(
-            """
-            SELECT b.startDate, b.endDate, b.guests, p.city, p.state, p.country
-            FROM Booking b
-            JOIN Property p ON p.id = b.propertyId
-            WHERE b.travelerId = %s
-            ORDER BY b.createdAt DESC
-            LIMIT 1
-            """,
-            (user_id,),
-        )
-        row = cur.fetchone()
-        cur.close(); cn.close()
-        if not row:
-            print("return none")
+        print(f"fetch_latest_booking_for_user: {user_id}")
+        client = get_mongo_client()
+        
+        # Get booking database
+        booking_db = client[MONGODB_BOOKING_DB]
+        bookings_collection = booking_db['bookings']
+        
+        # Get property database
+        property_db = client[MONGODB_PROPERTY_DB]
+        properties_collection = property_db['properties']
+        
+        # Use aggregation to join booking with property
+        pipeline = [
+            {
+                '$match': {
+                    'travelerId': user_id
+                }
+            },
+            {
+                '$sort': {
+                    'createdAt': -1
+                }
+            },
+            {
+                '$limit': 1
+            }
+        ]
+        
+        bookings = list(bookings_collection.aggregate(pipeline))
+        
+        if not bookings:
+            print("No bookings found for user")
             return None
-        print("row ", row)
-        loc = ", ".join([x for x in [row.get("city"), row.get("state"), row.get("country")] if x])
-        sd = row["startDate"]; ed = row["endDate"]
-        if isinstance(sd, dt.datetime): sd = sd.date()
-        if isinstance(ed, dt.datetime): ed = ed.date()
+            
+        booking = bookings[0]
+        print(f"Found booking: {booking}")
+        
+        # Fetch property details
+        property_id = booking.get('propertyId')
+        try:
+            from bson import ObjectId
+            if isinstance(property_id, str):
+                property_id = ObjectId(property_id)
+        except Exception as e:
+            print(f"Error converting property_id to ObjectId: {e}")
+
+        property_doc = properties_collection.find_one({'_id': property_id})
+        
+        if not property_doc:
+            print(f"Property {property_id} not found, using booking location if available")
+            location = "Unknown"
+        else:
+            # Extract location from property
+            # Property has 'location' field which might be structured
+            location = property_doc.get('location', 'Unknown')
+        
+        # MongoDB uses checkInDate/checkOutDate vs MySQL startDate/endDate
+        check_in = booking.get('checkInDate')
+        check_out = booking.get('checkOutDate')
+        
+        # Convert datetime to date if needed
+        if isinstance(check_in, dt.datetime):
+            check_in = check_in.date()
+        elif isinstance(check_in, str):
+            check_in = dt.datetime.fromisoformat(check_in.replace('Z', '+00:00')).date()
+            
+        if isinstance(check_out, dt.datetime):
+            check_out = check_out.date()
+        elif isinstance(check_out, str):
+            check_out = dt.datetime.fromisoformat(check_out.replace('Z', '+00:00')).date()
+        
         return BookingContext(
-            location=loc or "Unknown",
-            start_date=sd,
-            end_date=ed,
-            guests=row.get("guests", 1),
-            party_type="family"
+            location=location,
+            start_date=check_in,
+            end_date=check_out,
+            guests=booking.get('guests', 1),
+            party_type='family'
         )
+        
+    except OperationFailure as e:
+        print(f"MongoDB operation error: {e}")
+        return None
     except Exception as e:
-        print("DB error:", e)
+        print(f"DB error: {e}")
+        import traceback
+        traceback.print_exc()
         return None
 
 # ------------------------------------------------------------------------------

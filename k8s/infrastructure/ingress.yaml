@@ -1,0 +1,43 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: airbnb-ingress
+  namespace: airbnb
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /$2
+    nginx.ingress.kubernetes.io/cors-allow-origin: "*"
+    nginx.ingress.kubernetes.io/enable-cors: "true"
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: airbnb.local
+      http:
+        paths:
+          - path: /api/traveler(/|$)(.*)
+            pathType: Prefix
+            backend:
+              service:
+                name: traveler-service
+                port:
+                  number: 4001
+          - path: /api/owner(/|$)(.*)
+            pathType: Prefix
+            backend:
+              service:
+                name: owner-service
+                port:
+                  number: 4003
+          - path: /api/properties(/|$)(.*)
+            pathType: Prefix
+            backend:
+              service:
+                name: property-service
+                port:
+                  number: 4002
+          - path: /(.*)
+            pathType: Prefix
+            backend:
+              service:
+                name: client
+                port:
+                  number: 80

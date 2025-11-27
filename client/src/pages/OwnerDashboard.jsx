@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import api from '../api';
 
-const SERVER = 'http://localhost:4000';
+const SERVER = 'http://localhost:4002';
 
 export default function OwnerDashboard() {
   const nav = useNavigate();
+  const location = useLocation();
   const [properties, setProperties] = useState([]);
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -14,19 +15,37 @@ export default function OwnerDashboard() {
 
   useEffect(() => {
     loadData();
-  }, []);
+    // Clear the navigation state after loading to prevent re-triggering
+    if (location.state?.refresh) {
+      window.history.replaceState({}, document.title);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.key, location.state?.refresh]); // Reload on navigation and refresh flag
 
   const loadData = async () => {
     setLoading(true);
     try {
-      const [propsRes, bookingsRes] = await Promise.all([
+      const [propsRes, bookingsRes, debugRes] = await Promise.all([
         api.get('/properties/mine'),
-        api.get('/bookings')
+        api.get('/owner/bookings'),
+        api.get('/properties/debug/owner-check') // Debug call
       ]);
-      setProperties(propsRes.data);
-      setBookings(bookingsRes.data);
+      console.log('Properties response:', propsRes.data);
+      console.log('Bookings response:', bookingsRes.data);
+      console.log('===== DEBUG OWNER IDS =====');
+      console.log(JSON.stringify(debugRes.data, null, 2));
+      console.log('===== END DEBUG =====');
+
+      // Extract the properties array from the response object
+      const fetchedProperties = propsRes.data.properties || [];
+      const fetchedBookings = bookingsRes.data.bookings || [];
+
+      console.log(`Loaded ${fetchedProperties.length} properties and ${fetchedBookings.length} bookings`);
+      setProperties(fetchedProperties);
+      setBookings(fetchedBookings);
     } catch (e) {
       console.error('Failed to load data:', e);
+      console.error('Error response:', e.response?.data);
     } finally {
       setLoading(false);
     }
@@ -34,7 +53,7 @@ export default function OwnerDashboard() {
 
   const handleBookingAction = async (bookingId, action) => {
     try {
-      await api.put(`/bookings/${bookingId}/status`, { action });
+      await api.put(`/owner/bookings/${bookingId}/status`, { action });
       setMsg(`Booking ${action.toLowerCase()}ed successfully`);
       loadData(); // Reload data
       setTimeout(() => setMsg(''), 3000);
@@ -117,31 +136,28 @@ export default function OwnerDashboard() {
           <div className="flex gap-1 p-1">
             <button
               onClick={() => setActiveTab('properties')}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
-                activeTab === 'properties'
-                  ? 'bg-gray-900 text-white'
-                  : 'text-gray-600 hover:bg-gray-100'
-              }`}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition ${activeTab === 'properties'
+                ? 'bg-gray-900 text-white'
+                : 'text-gray-600 hover:bg-gray-100'
+                }`}
             >
               My Properties ({properties.length})
             </button>
             <button
               onClick={() => setActiveTab('bookings')}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
-                activeTab === 'bookings'
-                  ? 'bg-gray-900 text-white'
-                  : 'text-gray-600 hover:bg-gray-100'
-              }`}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition ${activeTab === 'bookings'
+                ? 'bg-gray-900 text-white'
+                : 'text-gray-600 hover:bg-gray-100'
+                }`}
             >
               Booking Requests ({pendingBookings.length})
             </button>
             <button
               onClick={() => setActiveTab('history')}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
-                activeTab === 'history'
-                  ? 'bg-gray-900 text-white'
-                  : 'text-gray-600 hover:bg-gray-100'
-              }`}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition ${activeTab === 'history'
+                ? 'bg-gray-900 text-white'
+                : 'text-gray-600 hover:bg-gray-100'
+                }`}
             >
               Booking History
             </button>
@@ -178,7 +194,7 @@ export default function OwnerDashboard() {
                           No photo
                         </div>
                       )}
-                      
+
                       {/* Property Details */}
                       <div className="p-4">
                         <h3 className="font-semibold text-lg mb-1">{p.name}</h3>

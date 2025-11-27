@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-const SERVER = 'http://localhost:4000';
+const SERVER = 'http://localhost:4002';
 
 const Bed = (props) => (
   <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden {...props}>

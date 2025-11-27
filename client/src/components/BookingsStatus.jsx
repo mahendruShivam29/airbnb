@@ -1,15 +1,14 @@
 import React, { useEffect, useState } from "react";
 import api from "../api";
-
-const BOOKINGS_ENDPOINT = "/bookings";
+import { useAuth } from "../context/AuthContext";
 
 const statusPill = (status) => {
   const s = (status || "").toUpperCase();
   const map = {
-    PENDING:  "bg-amber-100 text-amber-800 ring-1 ring-amber-200",
+    PENDING: "bg-amber-100 text-amber-800 ring-1 ring-amber-200",
     ACCEPTED: "bg-emerald-100 text-emerald-800 ring-1 ring-emerald-200",
     REJECTED: "bg-rose-100 text-rose-800 ring-1 ring-rose-200",
-    CANCELLED:"bg-gray-100 text-gray-700 ring-1 ring-gray-200",
+    CANCELLED: "bg-gray-100 text-gray-700 ring-1 ring-gray-200",
   };
   return map[s] || "bg-gray-100 text-gray-700 ring-1 ring-gray-200";
 };
@@ -24,16 +23,24 @@ const diffNights = (a, b) => {
 };
 
 export default function BookingsStatus() {
+  const { user } = useAuth();
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
 
   const load = async () => {
+    if (!user) return;
     try {
       setLoading(true);
       setErr("");
-      const r = await api.get(BOOKINGS_ENDPOINT, { withCredentials: true });
-      setBookings(Array.isArray(r.data) ? r.data : []);
+
+      const endpoint = user.role === 'TRAVELER'
+        ? '/traveler/bookings'
+        : '/owner/bookings';
+
+      const r = await api.get(endpoint, { withCredentials: true });
+      const fetchedBookings = r.data.bookings || [];
+      setBookings(fetchedBookings);
     } catch (e) {
       setErr(e?.response?.data?.error || e.message || "Failed to load bookings");
     } finally {
@@ -41,7 +48,9 @@ export default function BookingsStatus() {
     }
   };
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    if (user) load();
+  }, [user]);
 
   return (
     <div className="bg-white rounded-2xl shadow p-4">

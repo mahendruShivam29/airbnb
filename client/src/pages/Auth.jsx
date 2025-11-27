@@ -14,28 +14,67 @@ export default function Auth() {
   const { setUser } = useAuth();
   const nav = useNavigate();
 
+  const handleLogin = async () => {
+    // Try Traveler login first
+    try {
+      const { data } = await api.post('/traveler/auth/login', { email, password: pwd });
+      return data;
+    } catch (err) {
+      // If failed, try Owner login
+      try {
+        const { data } = await api.post('/owner/auth/login', { email, password: pwd });
+        return data;
+      } catch (err2) {
+        // If both fail, throw the error from the first attempt (or generic)
+        throw err;
+      }
+    }
+  };
+
   const onSubmit = async (e) => {
     e.preventDefault();
     setError('');
     try {
-      const url =
-        mode === 'signup' ? '/auth/signup' : '/auth/login';
-      const payload =
-        mode === 'signup'
-          ? { name, email, password: pwd, role }
-          : { email, password: pwd };
+      let data;
 
-      const { data } = await api.post(url, payload);
-      setUser(data);
+      if (mode === 'signup') {
+        const prefix = role === 'TRAVELER' ? '/traveler' : '/owner';
+        const url = `${prefix}/auth/signup`;
+        const nameParts = name.trim().split(' ');
+        const firstName = nameParts[0];
+        const lastName = nameParts.slice(1).join(' ') || '.'; // Default dot if no last name
+
+        const payload = { firstName, lastName, email, password: pwd, role };
+        const res = await api.post(url, payload);
+        data = res.data;
+      } else {
+        // Login mode: Auto-detect role
+        data = await handleLogin();
+      }
+
+      // Save session
+      localStorage.setItem('authToken', data.token);
+      localStorage.setItem('user', JSON.stringify(data.user));
+
+      setUser(data.user);
 
       // Redirect to dashboard after successful auth
       nav('/', { replace: true });
     } catch (err) {
-      setError(
-        err?.response?.data?.error ||
-        err?.response?.data?.message ||
-        'Something went wrong'
-      );
+      // Handle validation errors (comes as array from express-validator)
+      if (err?.response?.data?.errors && Array.isArray(err.response.data.errors)) {
+        const firstError = err.response.data.errors[0];
+        setError(firstError.msg || `Invalid ${firstError.path || 'input'}`);
+      } else {
+        // Handle other errors
+        const errorMessage = err?.response?.data?.error || err?.response?.data?.message;
+        if (errorMessage) {
+          setError(errorMessage);
+        } else {
+          // Default fallback messages based on mode
+          setError(mode === 'signup' ? 'Signup failed. Please try again.' : 'Invalid email or password');
+        }
+      }
     }
   };
 
@@ -46,13 +85,13 @@ export default function Auth() {
           <div className="inline-flex rounded-full bg-gray-100 p-1">
             <button
               onClick={() => setMode('signup')}
-              className={`px-4 py-2 rounded-full text-sm font-medium ${mode==='signup' ? 'bg-white shadow-sm' : ''}`}
+              className={`px-4 py-2 rounded-full text-sm font-medium ${mode === 'signup' ? 'bg-white shadow-sm' : ''}`}
             >
               Sign up
             </button>
             <button
               onClick={() => setMode('login')}
-              className={`px-4 py-2 rounded-full text-sm font-medium ${mode==='login' ? 'bg-white shadow-sm' : ''}`}
+              className={`px-4 py-2 rounded-full text-sm font-medium ${mode === 'login' ? 'bg-white shadow-sm' : ''}`}
             >
               Log in
             </button>
@@ -82,6 +121,7 @@ export default function Auth() {
                 placeholder="Your name"
                 required
               />
+
               <div className="flex items-center gap-3 pt-1 pb-2">
                 <span className="text-sm font-medium">I am</span>
                 <label className="inline-flex items-center gap-2 text-sm">

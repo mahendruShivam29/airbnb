@@ -12,8 +12,22 @@ export function AuthProvider({ children }) {
     let alive = true;
     (async () => {
       try {
-        const r = await api.get('/auth/me'); // expects { user: {...} }
-        if (alive) setUser(r.data.user);
+        // Try to fetch from Traveler service first
+        try {
+          const r = await api.get('/traveler/auth/me');
+          if (alive) {
+            setUser(r.data.user);
+            return;
+          }
+        } catch (e) {
+          // If failed, try Owner service
+          try {
+            const r = await api.get('/owner/auth/me');
+            if (alive) setUser(r.data.user);
+          } catch {
+            if (alive) setUser(null);
+          }
+        }
       } catch {
         if (alive) setUser(null);
       } finally {
@@ -24,13 +38,23 @@ export function AuthProvider({ children }) {
   }, []);
 
   const login = async (email, password) => {
-    await api.post('/auth/login', { email, password });
-    const r = await api.get('/auth/me');
-    setUser(r.data.user);
+    // This function might be unused if Auth.jsx handles login directly
+    // But if used, we'd need to know the role. 
+    // For now, we'll try traveler first.
+    try {
+      await api.post('/traveler/auth/login', { email, password });
+      const r = await api.get('/traveler/auth/me');
+      setUser(r.data.user);
+    } catch {
+      await api.post('/owner/auth/login', { email, password });
+      const r = await api.get('/owner/auth/me');
+      setUser(r.data.user);
+    }
   };
 
   const logout = async () => {
-    try { await api.post('/auth/logout'); } catch {}
+    try { await api.post('/traveler/auth/logout'); } catch { }
+    try { await api.post('/owner/auth/logout'); } catch { }
     setUser(null);
   };
 

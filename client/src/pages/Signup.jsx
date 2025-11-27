@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 
-export default function Signup(){
+export default function Signup() {
   const nav = useNavigate();
   const { signup } = useAuth();
   const [role, setRole] = useState('TRAVELER');
@@ -22,7 +22,13 @@ export default function Signup(){
       await signup(payload);
       nav('/dashboard');
     } catch (err) {
-      setError(err.response?.data?.error || 'Signup failed');
+      // Handle validation errors (comes as array from express-validator)
+      if (err?.response?.data?.errors && Array.isArray(err.response.data.errors)) {
+        const firstError = err.response.data.errors[0];
+        setError(firstError.msg || `Invalid ${firstError.path || 'input'}`);
+      } else {
+        setError(err.response?.data?.error || 'Signup failed. Please try again.');
+      }
     }
   };
 
@@ -32,21 +38,21 @@ export default function Signup(){
       {error && <div className="bg-rose-50 text-rose-600 p-2 rounded mb-3 text-sm">{error}</div>}
       <form onSubmit={submit} className="space-y-3">
         <div className="flex gap-2">
-          <button type="button" onClick={()=>setRole('TRAVELER')} className={`flex-1 p-2 rounded-xl border ${role==='TRAVELER'?'bg-gray-900 text-white':'bg-white'}`}>Traveler</button>
-          <button type="button" onClick={()=>setRole('OWNER')} className={`flex-1 p-2 rounded-xl border ${role==='OWNER'?'bg-gray-900 text-white':'bg-white'}`}>Owner</button>
+          <button type="button" onClick={() => setRole('TRAVELER')} className={`flex-1 p-2 rounded-xl border ${role === 'TRAVELER' ? 'bg-gray-900 text-white' : 'bg-white'}`}>Traveler</button>
+          <button type="button" onClick={() => setRole('OWNER')} className={`flex-1 p-2 rounded-xl border ${role === 'OWNER' ? 'bg-gray-900 text-white' : 'bg-white'}`}>Owner</button>
         </div>
-        <input className="w-full border p-3 rounded-xl" placeholder="Full name" value={name} onChange={e=>setName(e.target.value)} />
-        <input className="w-full border p-3 rounded-xl" placeholder="Email" value={email} onChange={e=>setEmail(e.target.value)} />
-        <input type="password" className="w-full border p-3 rounded-xl" placeholder="Password" value={password} onChange={e=>setPassword(e.target.value)} />
-        {role==='OWNER' && (
+        <input className="w-full border p-3 rounded-xl" placeholder="Full name" value={name} onChange={e => setName(e.target.value)} />
+        <input className="w-full border p-3 rounded-xl" placeholder="Email" value={email} onChange={e => setEmail(e.target.value)} />
+        <input type="password" className="w-full border p-3 rounded-xl" placeholder="Password" value={password} onChange={e => setPassword(e.target.value)} />
+        {role === 'OWNER' && (
           <div className="grid grid-cols-2 gap-2">
-            <input className="border p-3 rounded-xl" placeholder="City" value={city} onChange={e=>setCity(e.target.value)} />
-            <select className="border p-3 rounded-xl" value={state} onChange={e=>setState(e.target.value)}>
+            <input className="border p-3 rounded-xl" placeholder="City" value={city} onChange={e => setCity(e.target.value)} />
+            <select className="border p-3 rounded-xl" value={state} onChange={e => setState(e.target.value)}>
               <option value="">State (abbr)</option>
-              {['AL','AK','AZ','AR','CA','CO','CT','DC','DE','FL','GA','HI','IA','ID','IL','IN','KS','KY','LA','MA','MD','ME','MI','MN','MO','MS','MT','NC','ND','NE','NH','NJ','NM','NV','NY','OH','OK','OR','PA','RI','SC','SD','TN','TX','UT','VA','VT','WA','WI','WV','WY'].map(s=> <option key={s} value={s}>{s}</option>)}
+              {['AL', 'AK', 'AZ', 'AR', 'CA', 'CO', 'CT', 'DC', 'DE', 'FL', 'GA', 'HI', 'IA', 'ID', 'IL', 'IN', 'KS', 'KY', 'LA', 'MA', 'MD', 'ME', 'MI', 'MN', 'MO', 'MS', 'MT', 'NC', 'ND', 'NE', 'NH', 'NJ', 'NM', 'NV', 'NY', 'OH', 'OK', 'OR', 'PA', 'RI', 'SC', 'SD', 'TN', 'TX', 'UT', 'VA', 'VT', 'WA', 'WI', 'WV', 'WY'].map(s => <option key={s} value={s}>{s}</option>)}
             </select>
-            <select className="col-span-2 border p-3 rounded-xl" value={country} onChange={e=>setCountry(e.target.value)}>
-              {['USA','Canada','UK','India','Australia'].map(c=> <option key={c} value={c}>{c}</option>)}
+            <select className="col-span-2 border p-3 rounded-xl" value={country} onChange={e => setCountry(e.target.value)}>
+              {['USA', 'Canada', 'UK', 'India', 'Australia'].map(c => <option key={c} value={c}>{c}</option>)}
             </select>
           </div>
         )}

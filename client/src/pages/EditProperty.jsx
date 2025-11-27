@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import api from '../api';
 
-const SERVER = 'http://localhost:4000';
+const SERVER = 'http://localhost:4002';
 
 export default function EditProperty() {
   const { id } = useParams();
@@ -27,23 +27,24 @@ export default function EditProperty() {
   const loadProperty = async () => {
     try {
       const { data } = await api.get(`/properties/${id}`);
+      const property = data.property;
       setFormData({
-        name: data.name,
-        type: data.type,
-        description: data.description || '',
-        address: data.address || '',
-        city: data.city || '',
-        state: data.state || '',
-        country: data.country || 'USA',
-        pricePerNight: data.pricePerNight,
-        bedrooms: data.bedrooms,
-        bathrooms: data.bathrooms,
-        maxGuests: data.maxGuests,
-        amenities: Array.isArray(data.amenities) ? data.amenities : [],
-        availableFrom: data.availableFrom ? data.availableFrom.split('T')[0] : '',
-        availableTo: data.availableTo ? data.availableTo.split('T')[0] : ''
+        name: property.name,
+        type: property.type,
+        description: property.description || '',
+        address: property.address || '',
+        city: property.city || '',
+        state: property.state || '',
+        country: property.country || 'USA',
+        pricePerNight: property.pricePerNight,
+        bedrooms: property.bedrooms,
+        bathrooms: property.bathrooms,
+        maxGuests: property.maxGuests,
+        amenities: Array.isArray(property.amenities) ? property.amenities : [],
+        availableFrom: property.availableFrom ? property.availableFrom.split('T')[0] : '',
+        availableTo: property.availableTo ? property.availableTo.split('T')[0] : ''
       });
-      setPhotos(Array.isArray(data.photos) ? data.photos : []);
+      setPhotos(Array.isArray(property.photos) ? property.photos : []);
     } catch (e) {
       setError('Failed to load property');
     } finally {
@@ -231,7 +232,7 @@ export default function EditProperty() {
                 onChange={e => handleChange('state', e.target.value)}
               >
                 <option value="">Select State</option>
-                {['AL','AK','AZ','AR','CA','CO','CT','DC','DE','FL','GA','HI','IA','ID','IL','IN','KS','KY','LA','MA','MD','ME','MI','MN','MO','MS','MT','NC','ND','NE','NH','NJ','NM','NV','NY','OH','OK','OR','PA','RI','SC','SD','TN','TX','UT','VA','VT','WA','WI','WV','WY'].map(s => (
+                {['AL', 'AK', 'AZ', 'AR', 'CA', 'CO', 'CT', 'DC', 'DE', 'FL', 'GA', 'HI', 'IA', 'ID', 'IL', 'IN', 'KS', 'KY', 'LA', 'MA', 'MD', 'ME', 'MI', 'MN', 'MO', 'MS', 'MT', 'NC', 'ND', 'NE', 'NH', 'NJ', 'NM', 'NV', 'NY', 'OH', 'OK', 'OR', 'PA', 'RI', 'SC', 'SD', 'TN', 'TX', 'UT', 'VA', 'VT', 'WA', 'WI', 'WV', 'WY'].map(s => (
                   <option key={s} value={s}>{s}</option>
                 ))}
               </select>
@@ -244,7 +245,7 @@ export default function EditProperty() {
                 value={formData.country}
                 onChange={e => handleChange('country', e.target.value)}
               >
-                {['USA','Canada','UK','India','Australia'].map(c => (
+                {['USA', 'Canada', 'UK', 'India', 'Australia'].map(c => (
                   <option key={c} value={c}>{c}</option>
                 ))}
               </select>

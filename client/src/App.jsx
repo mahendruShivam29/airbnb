@@ -60,7 +60,8 @@ function HeartIcon(props) {
 
 function Header() {
   const { user, logout } = useAuth();
-  const avatar = user?.avatarUrl ? `${SERVER}${user.avatarUrl}` : null;
+  const serverPort = user?.role === 'TRAVELER' ? '4001' : '4003';
+  const avatar = user?.avatarUrl ? `http://localhost:${serverPort}${user.avatarUrl}` : null;
 
   return (
     <header className="sticky top-0 z-50 bg-white border-b shadow-sm">
@@ -141,6 +142,8 @@ export default function App() {
         <main className="flex-1 max-w-7xl w-full mx-auto px-6 py-8">
           <Routes>
             <Route path="/auth" element={<Auth />} />
+            <Route path="/login" element={<Navigate to="/auth" replace />} />
+            <Route path="/signup" element={<Navigate to="/auth" replace />} />
 
             {/* Home - Role-based routing */}
             <Route

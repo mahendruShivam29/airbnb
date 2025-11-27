@@ -1,0 +1,25 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: airbnb
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: airbnb-config
+  namespace: airbnb
+data:
+  MONGODB_URI: "mongodb://mongodb:27017"
+  KAFKA_BROKERS: "kafka:9092"
+  CLIENT_ORIGIN: "http://localhost:5173"
+  JWT_EXPIRES_IN: "7d"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: airbnb-secrets
+  namespace: airbnb
+type: Opaque
+stringData:
+  JWT_SECRET: "your-secret-key-change-in-production"
+  MONGODB_ROOT_PASSWORD: "pass123"
