@@ -148,7 +148,7 @@ Open browser: **http://localhost:5173**
 
 ## 🛑 How to Stop
 
-Close all service windows (or Ctrl+C in each), then:
+Close all service windows (or Ctrl+c in each), then:
 ```bash
 docker-compose -f docker-compose.infrastructure.yml down
 ```
