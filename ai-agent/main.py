@@ -489,7 +489,17 @@ def plan_agent(input: AgentInput):
     if not booking and input.booking:
         booking = input.booking
     if not booking:
-        raise HTTPException(status_code=400, detail="No booking context provided or found")
+        if input.free_text:
+            # Create a dummy context from free text
+            booking = BookingContext(
+                location=input.free_text,
+                start_date=dt.date.today(),
+                end_date=dt.date.today() + dt.timedelta(days=3),
+                guests=1,
+                party_type='family'
+            )
+        else:
+            raise HTTPException(status_code=400, detail="No booking context provided or found")
 
     # Geocode (optional)
     lat, lon, canonical = geocode_place(booking.location)

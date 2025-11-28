@@ -98,6 +98,14 @@ sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plug
 # Add user to docker group (avoids using sudo)
 sudo usermod -aG docker $USER
 newgrp docker
+
+# CRITICAL: Create Swap Memory (Prevents freeze during build)
+# t2.micro has only 1GB RAM. We need swap space for 'npm install'.
+sudo fallocate -l 2G /swapfile
+sudo chmod 600 /swapfile
+sudo mkswap /swapfile
+sudo swapon /swapfile
+echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
 ```
 
 ---
